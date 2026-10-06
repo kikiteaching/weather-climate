@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小學四年級科學科 第三章《天氣與氣候》大冒險與互動學習館</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Climate Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts Inter & Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'p4-science-weather-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        let db, auth;
+        if (Object.keys(firebaseConfig).length > 0) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        }
+
+        window.db = db;
+        window.auth = auth;
+        window.appId = appId;
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        skyBlue: '#00b4d8',
+                        warmOrange: '#ff7b00',
+                        leafGreen: '#38b000',
+                        sunnyYellow: '#ffb703',
+                        deepBlue: '#03045e',
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 50%, #e0f2fe 100%);
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+        }
+
+        .badge-pulse {
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 183, 3, 0.6)); }
+            50% { transform: scale(1.05); filter: drop-shadow(0 0 15px rgba(255, 183, 3, 0.9)); }
+        }
+
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        canvas#monsoonCanvas {
+            background: linear-gradient(to bottom, #78baeb 0%, #3a8bcd 100%);
+        }
+    </style>
+</head>
+<body class="text-slate-800 pb-12">
+
+    <!-- Top Header -->
+    <header class="bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 bg-amber-400 text-sky-900 rounded-2xl flex items-center justify-center font-extrabold text-2xl shadow-md badge-pulse">
+                    <i class="fa-solid font-bold fa-cloud-sun-rain"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-wide">小四科學《天氣與氣候》</h1>
+                    <p class="text-xs text-sky-100 font-medium">第三章 互動學習與闖關評估體驗館</p>
+                </div>
+            </div>
+
+            <!-- Score & Sound Toggle -->
+            <div class="flex items-center space-x-4">
+                <div class="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full flex items-center space-x-2 border border-white/30">
+                    <i class="fa-solid fa-star text-amber-300 text-lg"></i>
+                    <span class="font-bold text-lg" id="scoreDisplay">0</span>
+                    <span class="text-xs text-sky-100">分</span>
+                </div>
+                <button onclick="openTeacherDashboard()" class="bg-white/20 hover:bg-rose-500 text-white w-10 h-10 rounded-full flex items-center justify-center transition" title="教師專區">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Student Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6">
+            <div class="w-20 h-20 bg-sky-100 text-sky-600 rounded-full mx-auto flex items-center justify-center text-4xl mb-4 shadow-inner">
+                <i class="fa-solid fa-user-graduate"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-slate-800">歡迎進入學習館！</h2>
+                <p class="text-sm text-slate-500 mt-2">請先輸入你的資料以記錄成績（作答後不可修改答案）</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-600 mb-1">班別 (例如: 4A)</label>
+                    <input type="text" id="studentClass" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 font-bold" placeholder="輸入班別">
+                </div>
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-600 mb-1">學號 (例如: 15)</label>
+                    <input type="number" id="studentIdNum" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 font-bold" placeholder="輸入學號">
+                </div>
+            </div>
+            <button onclick="startGame()" class="w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black rounded-xl shadow-lg transition transform hover:scale-[1.02]">
+                開始挑戰！
+            </button>
+        </div>
+    </div>
+
+    <!-- Teacher Dashboard Modal -->
+    <div id="teacherModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-chart-column text-sky-600 mr-2"></i>教師專區：學生成績表</h2>
+                <button onclick="closeTeacherDashboard()" class="text-slate-400 hover:text-rose-500 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <div id="teacherAuthSection" class="py-10 text-center space-y-4">
+                <p class="text-sm font-bold text-slate-600">請輸入教師密碼查閱成績</p>
+                <input type="password" id="teacherPassword" class="px-4 py-2 border border-slate-300 rounded-xl text-center font-bold outline-none focus:ring-2 focus:ring-sky-500">
+                <button onclick="verifyTeacher()" class="bg-sky-600 text-white px-6 py-2 rounded-xl font-bold shadow hover:bg-sky-700 transition">解鎖</button>
+            </div>
+
+            <div id="teacherDataSection" class="hidden flex-1 overflow-auto">
+                <div class="flex justify-between mb-3 items-center">
+                    <p class="text-xs text-slate-500">此表格取代 Excel，資料安全儲存於雲端。</p>
+                    <button onclick="loadTeacherData()" class="text-xs bg-slate-100 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200"><i class="fa-solid fa-rotate-right mr-1"></i>重新整理</button>
+                </div>
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 font-bold">
+                            <th class="p-3 border-b">班別</th>
+                            <th class="p-3 border-b">學號</th>
+                            <th class="p-3 border-b">總分</th>
+                            <th class="p-3 border-b">完成時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teacherTableBody" class="divide-y divide-slate-100">
+                        <!-- Data populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-6xl mx-auto px-4 mt-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 bg-white/70 p-2 rounded-2xl shadow-sm border border-slate-200">
+            <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn active py-3 px-3 rounded-xl font-bold text-sm md:text-base flex items-center justify-center space-x-2 transition-all">
+                <i class="fa-solid fa-scale-balanced"></i>
+                <span>關卡一：天氣 vs 氣候</span>
+            </button>
+            <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn py-3 px-3 rounded-xl font-bold text-sm md:text-base text-slate-600 hover:text-sky-700 flex items-center justify-center space-x-2 transition-all">
+                <i class="fa-solid fa-earth-asia"></i>
+                <span>關卡二：氣候圖與季候風</span>
+            </button>
+            <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn py-3 px-3 rounded-xl font-bold text-sm md:text-base text-slate-600 hover:text-sky-700 flex items-center justify-center space-x-2 transition-all">
+                <i class="fa-solid fa-clipboard-question"></i>
+                <span>關卡三：全球氣候大考評</span>
+            </button>
+            <button onclick="switchTab('tab4')" id="btn-tab4" class="tab-btn py-3 px-3 rounded-xl font-bold text-sm md:text-base text-slate-600 hover:text-sky-700 flex items-center justify-center space-x-2 transition-all">
+                <i class="fa-solid fa-snowflake"></i>
+                <span>關卡四：白色聖誕探究</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="max-w-6xl mx-auto px-4 mt-6">
+
+        <!-- TAB 1: 天氣 vs 氣候 辨析挑戰 -->
+        <section id="tab1" class="tab-content block">
+            <div class="glass-card rounded-3xl p-6 md:p-8">
+                <div class="flex items-center space-x-3 border-b border-slate-200 pb-4 mb-6">
+                    <span class="bg-sky-100 text-sky-700 p-3 rounded-2xl text-xl font-black">
+                        <i class="fa-solid fa-lightbulb"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800">第一部分：概念辨析評估 —「天氣 vs 氣候」</h2>
+                        <p class="text-sm text-slate-500">請仔細閱讀以下 4 個生活情境，判斷這是屬於「天氣（Weather）」還是「氣候（Climate）」？</p>
+                    </div>
+                </div>
+
+                <!-- Interactive Flashcards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="level1Cards">
+                    <!-- Cards will be populated dynamically -->
+                </div>
+
+                <div class="mt-8 bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-start space-x-3">
+                    <i class="fa-solid fa-circle-info text-sky-600 text-lg mt-0.5"></i>
+                    <div class="text-sm text-sky-900">
+                        <strong class="font-bold">秘訣提點：</strong>
+                        <span class="underline decoration-sky-400 font-medium">天氣（Weather）</span> 指短時間（數小時或數天內）的大氣狀態；
+                        <span class="underline decoration-amber-400 font-medium">氣候（Climate）</span> 指長時間（如30年以上）四季累積統計出來的整體規律特徵！
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: 世界氣候地圖與季候風模擬器 -->
+        <section id="tab2" class="tab-content hidden">
+            <div class="glass-card rounded-3xl p-6 md:p-8 space-y-8">
+                
+                <!-- Section Header -->
+                <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <span class="bg-indigo-100 text-indigo-700 p-3 rounded-2xl text-xl font-black">
+                            <i class="fa-solid fa-compass"></i>
+                        </span>
+                        <div>
+                            <h2 class="text-2xl font-black text-slate-800">第二部分：氣候數據探究與季候風動畫</h2>
+                            <p class="text-sm text-slate-500">點擊地圖城市查看氣候圖表，並學習「香港季候風」的成因！</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- World Climate Map Interactive Hotspots -->
+                <div class="bg-slate-900 rounded-3xl p-4 relative overflow-hidden shadow-inner">
+                    <div class="flex items-center justify-between text-white mb-3 px-2">
+                        <span class="font-bold text-sm"><i class="fa-solid fa-map-pin text-rose-400 mr-2"></i>世界四大城市氣候觀察站</span>
+                        <span class="text-xs text-slate-400">點擊地圖標籤點解鎖數據</span>
+                    </div>
+
+                    <!-- World Map Background Representation -->
+                    <div class="relative w-full h-80 bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden flex items-center justify-center">
+                        <img src="https://images.unsplash.com/photo-1589519160732-57fc498494f8?q=80&w=1200&auto=format&fit=crop" alt="World Map" class="absolute inset-0 w-full h-full object-cover opacity-35">
+                        
+                        <!-- Interactive City Pins -->
+                        <!-- Beijing Pin -->
+                        <button onclick="showCityDetails('beijing')" class="absolute top-[28%] left-[72%] transform -translate-x-1/2 -translate-y-1/2 group">
+                            <div class="relative flex flex-col items-center">
+                                <span class="bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg group-hover:scale-110 transition">北京</span>
+                                <i class="fa-solid fa-location-dot text-rose-500 text-2xl drop-shadow-md animate-bounce"></i>
+                            </div>
+                        </button>
+
+                        <!-- Hong Kong Pin -->
+                        <button onclick="showCityDetails('hongkong')" class="absolute top-[42%] left-[75%] transform -translate-x-1/2 -translate-y-1/2 group">
+                            <div class="relative flex flex-col items-center">
+                                <span class="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg group-hover:scale-110 transition">香港</span>
+                                <i class="fa-solid fa-location-dot text-amber-500 text-2xl drop-shadow-md animate-bounce"></i>
+                            </div>
+                        </button>
+
+                        <!-- Singapore Pin -->
+                        <button onclick="showCityDetails('singapore')" class="absolute top-[58%] left-[73%] transform -translate-x-1/2 -translate-y-1/2 group">
+                            <div class="relative flex flex-col items-center">
+                                <span class="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg group-hover:scale-110 transition">新加坡</span>
+                                <i class="fa-solid fa-location-dot text-emerald-500 text-2xl drop-shadow-md animate-bounce"></i>
+                            </div>
+                        </button>
+
+                        <!-- Canberra Pin -->
+                        <button onclick="showCityDetails('canberra')" class="absolute top-[78%] left-[86%] transform -translate-x-1/2 -translate-y-1/2 group">
+                            <div class="relative flex flex-col items-center">
+                                <span class="bg-sky-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg group-hover:scale-110 transition">坎培拉</span>
+                                <i class="fa-solid fa-location-dot text-sky-500 text-2xl drop-shadow-md animate-bounce"></i>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- City Climate Detail Display Card -->
+                <div id="cityDetailCard" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm transition-all">
+                    <div class="text-center py-8 text-slate-400">
+                        <i class="fa-solid fa-hand-pointer text-4xl mb-2 text-sky-400 animate-pulse"></i>
+                        <p class="font-medium">請在上方地圖點擊任一城市（香港、北京、新加坡、坎培拉），查閱氣溫與降雨統計圖！</p>
+                    </div>
+                </div>
+
+                <!-- Monsoon Wind Animation Section -->
+                <div class="bg-gradient-to-br from-blue-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl mt-4">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-white/10 pb-4">
+                        <div>
+                            <span class="bg-sky-500/20 text-sky-300 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider">多媒體觀課亮點</span>
+                            <h3 class="text-xl font-black mt-1"><i class="fa-solid fa-wind text-cyan-400 mr-2"></i>香港季候風成因解密</h3>
+                            <p class="text-xs text-slate-300">為什麼香港「夏天潮濕多雨，冬天乾燥少雨」？切換季節看看風向！</p>
+                        </div>
+                        <div class="flex bg-slate-800/80 p-1 rounded-2xl border border-white/10">
+                            <button onclick="setMonsoonSeason('summer')" id="btnSummer" class="px-4 py-2 rounded-xl text-sm font-bold bg-amber-500 text-slate-900 shadow">
+                                <i class="fa-solid fa-sun mr-1"></i> 夏季季候風
+                            </button>
+                            <button onclick="setMonsoonSeason('winter')" id="btnWinter" class="px-4 py-2 rounded-xl text-sm font-bold text-slate-300 hover:text-white transition">
+                                <i class="fa-solid fa-snowflake mr-1"></i> 冬季季候風
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Monsoon Canvas Diagram -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                        <div class="lg:col-span-2 relative rounded-2xl overflow-hidden border border-white/20 shadow-lg">
+                            <canvas id="monsoonCanvas" class="w-full h-64 block"></canvas>
+                        </div>
+
+                        <!-- Dynamic Explanation Box -->
+                        <div id="monsoonExplanation" class="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/20 space-y-3">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 3: 全球氣候特徵多元評估 -->
+        <section id="tab3" class="tab-content hidden">
+            <div class="glass-card rounded-3xl p-6 md:p-8 space-y-8">
+
+                <!-- Section Header -->
+                <div class="flex items-center space-x-3 border-b border-slate-200 pb-4">
+                    <span class="bg-emerald-100 text-emerald-700 p-3 rounded-2xl text-xl font-black">
+                        <i class="fa-solid fa-list-check"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800">第三部分：全球氣候多元評估大考評</h2>
+                        <p class="text-sm text-slate-500">包含正誤判斷、Gemini 快問快答與城市氣候類型連連看！</p>
+                    </div>
+                </div>
+
+                <!-- Task A: True / False Error Correction -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="text-lg font-extrabold text-slate-800 flex items-center">
+                        <span class="w-7 h-7 bg-emerald-600 text-white rounded-lg flex items-center justify-center text-sm mr-2">A</span>
+                        全球氣候正誤判斷題（True or False）
+                    </h3>
+                    <p class="text-xs text-slate-500">點擊「⭕ 正確」或「❌ 錯誤」，答錯請閱讀正確解析：</p>
+
+                    <div class="space-y-3" id="tfQuestionContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Task B: Gemini AI Quick Quiz -->
+                <div class="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-extrabold text-indigo-900 flex items-center">
+                            <span class="w-7 h-7 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-sm mr-2">B</span>
+                            Gemini AI 互動快問快答
+                        </h3>
+                        <span class="text-xs bg-indigo-200 text-indigo-800 px-3 py-1 rounded-full font-bold">手勢表決模擬</span>
+                    </div>
+
+                    <div class="space-y-4" id="quickQuizContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Task C: Matching Challenge -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="text-lg font-extrabold text-slate-800 flex items-center">
+                        <span class="w-7 h-7 bg-amber-500 text-white rounded-lg flex items-center justify-center text-sm mr-2">C</span>
+                        城市氣候特徵連連看對照表
+                    </h3>
+                    <p class="text-xs text-slate-500">請為各城市選出正確的【氣候特徵代號】：</p>
+
+                    <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 text-xs text-amber-900 flex flex-wrap gap-4 font-bold mb-4">
+                        <span>A. 熱帶雨林氣候</span>
+                        <span>B. 亞熱帶季風氣候</span>
+                        <span>C. 南半球溫帶氣候</span>
+                        <span>D. 溫帶季風氣候</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                    <th class="p-3">城市名稱</th>
+                                    <th class="p-3 w-44">選擇氣候特徵</th>
+                                    <th class="p-3">季節與氣溫特徵說明</th>
+                                    <th class="p-3 w-24">結果</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200" id="matchingTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pt-2 text-right">
+                        <button onclick="checkMatchingAnswers()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-6 py-2.5 rounded-xl font-extrabold shadow transition">
+                            <i class="fa-solid fa-check-double mr-1"></i> 提交對照答案
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 4: 白色聖誕探究與反思 -->
+        <section id="tab4" class="tab-content hidden">
+            <div class="glass-card rounded-3xl p-6 md:p-8 space-y-8">
+
+                <!-- Section Header -->
+                <div class="flex items-center space-x-3 border-b border-slate-200 pb-4">
+                    <span class="bg-rose-100 text-rose-700 p-3 rounded-2xl text-xl font-black">
+                        <i class="fa-solid fa-snowflake"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800">第四部分：白色聖誕探究</h2>
+                        <p class="text-sm text-slate-500">協助求珍一家選擇 12 月最佳雪景目的地！</p>
+                    </div>
+                </div>
+
+                <!-- White Christmas Investigation Widget -->
+                <div class="bg-gradient-to-br from-slate-900 to-blue-950 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                    <div class="relative z-10 space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <span class="bg-rose-500 text-white text-xs px-3 py-1 rounded-full font-extrabold uppercase">探究任務</span>
+                            <h3 class="text-xl font-black">求珍一家的「白色聖誕」之旅（12月）</h3>
+                        </div>
+                        <p class="text-sm text-slate-300">
+                            求珍一家計劃在 <span class="text-amber-300 font-bold">12 月聖誕節</span> 出國尋找「白色聖誕」。科學小常識：當氣溫跌至 <span class="text-cyan-300 font-bold">0°C 或以下</span> 時，才有最大機會下雪。請問去哪裡最可能看到雪景？
+                        </p>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                            <!-- Beijing Option -->
+                            <div onclick="testSnowDestination('beijing')" class="cursor-pointer bg-white/10 hover:bg-white/20 p-5 rounded-2xl border border-white/20 transition group text-center">
+                                <div class="text-3xl mb-2 text-rose-400 group-hover:scale-125 transition">❄️</div>
+                                <h4 class="font-bold text-lg">北京</h4>
+                                <p class="text-xs text-slate-300 mt-1">12月平均氣溫 &lt; 0°C</p>
+                                <button class="mt-3 bg-rose-500 hover:bg-rose-600 text-white text-xs px-4 py-1.5 rounded-full font-bold">測試可能性</button>
+                            </div>
+
+                            <!-- Singapore Option -->
+                            <div onclick="testSnowDestination('singapore')" class="cursor-pointer bg-white/10 hover:bg-white/20 p-5 rounded-2xl border border-white/20 transition group text-center">
+                                <div class="text-3xl mb-2 text-amber-400 group-hover:scale-125 transition">🌴</div>
+                                <h4 class="font-bold text-lg">新加坡</h4>
+                                <p class="text-xs text-slate-300 mt-1">靠近赤道，全年 26-28°C</p>
+                                <button class="mt-3 bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs px-4 py-1.5 rounded-full font-bold">測試可能性</button>
+                            </div>
+
+                            <!-- Canberra Option -->
+                            <div onclick="testSnowDestination('canberra')" class="cursor-pointer bg-white/10 hover:bg-white/20 p-5 rounded-2xl border border-white/20 transition group text-center">
+                                <div class="text-3xl mb-2 text-sky-400 group-hover:scale-125 transition">🦘</div>
+                                <h4 class="font-bold text-lg">坎培拉 (澳洲)</h4>
+                                <p class="text-xs text-slate-300 mt-1">位於南半球，12月為夏季</p>
+                                <button class="mt-3 bg-sky-500 hover:bg-sky-600 text-white text-xs px-4 py-1.5 rounded-full font-bold">測試可能性</button>
+                            </div>
+                        </div>
+
+                        <!-- Snow Test Result Modal/Box -->
+                        <div id="snowResultBox" class="hidden bg-white text-slate-800 p-5 rounded-2xl shadow-lg border border-slate-200 mt-4 animate-fade-in">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Custom Modal Dialog (No alerts) -->
+    <div id="customModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 text-center space-y-4 animate-scale-up">
+            <div id="modalIcon" class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl"></div>
+            <h3 id="modalTitle" class="text-xl font-black text-slate-800"></h3>
+            <p id="modalBody" class="text-sm text-slate-600 leading-relaxed"></p>
+            <button onclick="closeModal()" class="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-2xl shadow transition">知道啦！</button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script type="module">
+        import { signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global User Info & Scoring
+        window.currentUserInfo = { class: '', id: '', uid: null };
+        window.totalScore = 0;
+        
+        window.startGame = async function() {
+            const cls = document.getElementById('studentClass').value.trim();
+            const sid = document.getElementById('studentIdNum').value.trim();
+            if(!cls || !sid) {
+                alert("為了記錄成績，請務必填寫班別及學號哦！"); // Fallback alert for login
+                return;
+            }
+            
+            document.getElementById('startGameBtn')?.setAttribute('disabled', 'true');
+            
+            try {
+                if (window.auth) {
+                    const userCred = await signInAnonymously(window.auth);
+                    window.currentUserInfo.uid = userCred.user.uid;
+                }
+            } catch(e) {
+                console.error("Auth error:", e);
+                // Continue even if auth fails to not block the game completely
+            }
+            
+            window.currentUserInfo.class = cls;
+            window.currentUserInfo.id = sid;
+            document.getElementById('loginModal').classList.add('hidden');
+            
+            // Initial save
+            window.saveScoreToCloud();
+        }
+
+        window.saveScoreToCloud = async function() {
+            if(!window.db || !window.currentUserInfo.uid) return;
+            try {
+                await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'scores', window.currentUserInfo.uid), {
+                    class: window.currentUserInfo.class,
+                    studentId: window.currentUserInfo.id,
+                    score: window.totalScore,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (e) { console.error("Error saving score:", e); }
+        }
+
+        window.addScore = function(pts) {
+            window.totalScore += pts;
+            document.getElementById('scoreDisplay').innerText = window.totalScore;
+            window.saveScoreToCloud(); // Sync to Firebase immediately
+        }
+
+        window.playSound = function(type) {
+            // 音效功能已取消
+        }
+
+        // Tab Navigation
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('text-slate-600');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.add('active');
+            activeBtn.classList.remove('text-slate-600');
+            if (tabId === 'tab2') window.initMonsoonCanvas();
+        }
+
+        // Modal Control
+        window.showModal = function(title, text, isSuccess = true) {
+            const modal = document.getElementById('customModal');
+            const icon = document.getElementById('modalIcon');
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalBody').innerText = text;
+
+            if (isSuccess) {
+                icon.className = 'w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl mx-auto flex items-center justify-center text-3xl';
+                icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+                window.playSound('correct');
+            } else {
+                icon.className = 'w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl mx-auto flex items-center justify-center text-3xl';
+                icon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+                window.playSound('wrong');
+            }
+            modal.classList.remove('hidden');
+        }
+
+        window.closeModal = function() {
+            document.getElementById('customModal').classList.add('hidden');
+        }
+
+        // Teacher Dashboard Logic
+        window.openTeacherDashboard = function() {
+            document.getElementById('teacherModal').classList.remove('hidden');
+        }
+        window.closeTeacherDashboard = function() {
+            document.getElementById('teacherModal').classList.add('hidden');
+        }
+        window.verifyTeacher = function() {
+            const pwd = document.getElementById('teacherPassword').value;
+            if(pwd === '1234') {
+                document.getElementById('teacherAuthSection').classList.add('hidden');
+                document.getElementById('teacherDataSection').classList.remove('hidden');
+                window.loadTeacherData();
+            } else {
+                alert("密碼錯誤");
+            }
+        }
+        window.loadTeacherData = async function() {
+            if(!window.db) return;
+            const tbody = document.getElementById('teacherTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4">載入中...</td></tr>';
+            try {
+                const querySnapshot = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'scores'));
+                let html = '';
+                let dataList = [];
+                querySnapshot.forEach((doc) => { dataList.push(doc.data()); });
+                
+                // Sort by class then ID in memory
+                dataList.sort((a, b) => (a.class > b.class ? 1 : -1) || (parseInt(a.studentId) - parseInt(b.studentId)));
+
+                if(dataList.length === 0) html = '<tr><td colspan="4" class="text-center p-4">暫無數據</td></tr>';
+                dataList.forEach(d => {
+                    const time = new Date(d.timestamp).toLocaleString('zh-HK');
+                    html += `<tr>
+                        <td class="p-3 border-b">${d.class}</td>
+                        <td class="p-3 border-b">${d.studentId}</td>
+                        <td class="p-3 border-b font-bold text-sky-600">${d.score}</td>
+                        <td class="p-3 border-b text-xs text-slate-500">${time}</td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+            } catch(e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-rose-500">讀取失敗，請檢查網絡</td></tr>';
+            }
+        }
+
+        // LEVEL 1: WEATHER VS CLIMATE CARDS
+        const level1Data = [
+            { id: 1, scenario: "天文台今早發出「黃色暴雨警告」。", answer: "weather", keywords: "「今早」、「暴雨警告」", explanation: "指的是數小時內的短時間大氣狀態變化。" },
+            { id: 2, scenario: "香港的夏季炎熱多雨，冬季溫和乾燥。", answer: "climate", keywords: "「夏季/冬季」、「炎熱多雨」", explanation: "指的是長期（30年以上）四季累積出的整體規律。" },
+            { id: 3, scenario: "今天下午氣溫達到 31℃，感覺十分悶熱。", answer: "weather", keywords: "「今天」、「31℃」", explanation: "指的是當天特定時刻的具體大氣狀態。" },
+            { id: 4, scenario: "俗語說「秋高氣爽」，形容香港秋天的天氣特徵。", answer: "climate", keywords: "「秋高氣爽」", explanation: "指的是每年秋季長時間統計出來的穩定特徵。" }
+        ];
+
+        let level1Answered = {};
+
+        window.renderLevel1 = function() {
+            const container = document.getElementById('level1Cards');
+            container.innerHTML = level1Data.map(item => `
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4 transition hover:shadow-md" id="l1-card-${item.id}">
+                    <div class="flex items-start justify-between">
+                        <span class="w-8 h-8 bg-sky-100 text-sky-700 font-extrabold rounded-lg flex items-center justify-center text-sm">第 ${item.id} 題</span>
+                        <span id="l1-badge-${item.id}" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">未回答</span>
+                    </div>
+                    <p class="font-black text-slate-800 text-lg leading-snug">情境：${item.scenario}</p>
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <button onclick="checkLevel1(${item.id}, 'weather')" id="l1-btn-w-${item.id}" class="py-2.5 px-4 rounded-xl font-bold border-2 border-sky-500 text-sky-700 hover:bg-sky-50 transition">
+                            <i class="fa-solid fa-cloud-sun mr-1"></i> 天氣 (Weather)
+                        </button>
+                        <button onclick="checkLevel1(${item.id}, 'climate')" id="l1-btn-c-${item.id}" class="py-2.5 px-4 rounded-xl font-bold border-2 border-amber-500 text-amber-700 hover:bg-amber-50 transition">
+                            <i class="fa-solid fa-earth-americas mr-1"></i> 氣候 (Climate)
+                        </button>
+                    </div>
+                    <div id="l1-exp-${item.id}" class="hidden bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs space-y-1">
+                        <span class="font-bold text-sky-700 block"><i class="fa-solid fa-key mr-1"></i> 解題關鍵字：${item.keywords}</span>
+                        <p class="text-slate-600">${item.explanation}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.checkLevel1 = function(id, userChoice) {
+            if (level1Answered[id]) return; // Block repeat
+            level1Answered[id] = true;
+
+            // Lock buttons
+            ['w', 'c'].forEach(type => {
+                const btn = document.getElementById(`l1-btn-${type}-${id}`);
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                btn.classList.remove('hover:bg-sky-50', 'hover:bg-amber-50');
+            });
+
+            const item = level1Data.find(x => x.id === id);
+            const badge = document.getElementById(`l1-badge-${id}`);
+            document.getElementById(`l1-exp-${id}`).classList.remove('hidden');
+
+            if (userChoice === item.answer) {
+                window.addScore(25);
+                badge.className = "text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700";
+                badge.innerText = "答對了！";
+                window.showModal("太棒了！答對了！", `【${userChoice === 'weather' ? '天氣' : '氣候'}】關鍵字：${item.keywords}。\n${item.explanation}`, true);
+            } else {
+                badge.className = "text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700";
+                badge.innerText = "已作答 (錯誤)";
+                window.showModal("不對哦！但不可修改了", `這項描述屬於【${item.answer === 'weather' ? '天氣' : '氣候'}】。\n關鍵字：${item.keywords}\n${item.explanation}`, false);
+            }
+        }
+
+        // LEVEL 2: WS CLIMATE DATA
+        const cityClimateData = {
+            hongkong: {
+                name: "香港 (Hong Kong)",
+                desc: "【亞熱帶季風氣候】四季分明，夏季炎熱多雨，冬季溫和乾燥。",
+                temps: [16, 17, 19, 23, 26, 28, 29, 29, 28, 25, 21, 18],
+                rain: [30, 54, 82, 174, 290, 456, 385, 450, 257, 120, 39, 27]
+            },
+            beijing: {
+                name: "北京 (Beijing)",
+                desc: "【溫帶季風氣候】四季分明，冬冷夏熱，冬季氣溫常低於 0℃。",
+                temps: [-3, 0, 7, 15, 21, 26, 27, 25, 20, 13, 5, -1],
+                rain: [3, 6, 9, 26, 29, 70, 170, 140, 48, 22, 7, 3]
+            },
+            singapore: {
+                name: "新加坡 (Singapore)",
+                desc: "【熱帶雨林氣候】全年皆夏，終年炎熱多雨，無明顯四季之分。",
+                temps: [26, 27, 27, 28, 28, 28, 28, 28, 27, 27, 26, 26],
+                rain: [230, 160, 180, 170, 170, 130, 150, 150, 160, 190, 250, 280]
+            },
+            canberra: {
+                name: "坎培拉 (Canberra, 澳洲)",
+                desc: "【南半球氣候】季節與北半球（如香港）完全相反，12至2月為夏季，6至8月為冬季。",
+                temps: [21, 20, 18, 13, 9, 6, 6, 7, 10, 13, 16, 19],
+                rain: [60, 50, 50, 45, 45, 40, 50, 50, 55, 60, 60, 55]
+            }
+        };
+
+        let currentChart = null;
+
+        window.showCityDetails = function(cityKey) {
+            const data = cityClimateData[cityKey];
+            const detailContainer = document.getElementById('cityDetailCard');
+
+            detailContainer.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <h3 class="text-xl font-black text-slate-800">${data.name}</h3>
+                        <i class="fa-solid fa-chart-line text-2xl text-sky-500"></i>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-100 p-3.5 rounded-xl">
+                        <p class="text-sm font-bold text-sky-900 mb-1"><i class="fa-solid fa-cloud-sun-rain mr-2"></i>氣候特徵：</p>
+                        <p class="text-sm text-slate-700 font-medium">${data.desc}</p>
+                    </div>
+                    <div class="relative h-64 w-full">
+                        <canvas id="cityChartCanvas"></canvas>
+                    </div>
+                </div>
+            `;
+
+            const ctx = document.getElementById('cityChartCanvas').getContext('2d');
+            if (currentChart) currentChart.destroy();
+            currentChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                    datasets: [
+                        { type: 'line', label: '平均氣溫 (°C)', data: data.temps, borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 3, yAxisID: 'yTemp' },
+                        { type: 'bar', label: '平均降雨量 (mm)', data: data.rain, backgroundColor: 'rgba(56, 189, 248, 0.6)', borderColor: '#0284c7', borderWidth: 1, yAxisID: 'yRain' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { yTemp: { type: 'linear', position: 'left', title: { display: true, text: '氣溫 (°C)' } }, yRain: { type: 'linear', position: 'right', title: { display: true, text: '降雨量 (mm)' }, grid: { drawOnChartArea: false } } } }
+            });
+        }
+
+        // MONSOON CANVAS ANIMATION
+        let currentSeason = 'summer';
+        let monsoonAnimId = null;
+
+        window.setMonsoonSeason = function(season) {
+            currentSeason = season;
+            const btnS = document.getElementById('btnSummer');
+            const btnW = document.getElementById('btnWinter');
+            const expBox = document.getElementById('monsoonExplanation');
+            if (season === 'summer') {
+                btnS.className = "px-4 py-2 rounded-xl text-sm font-bold bg-amber-500 text-slate-900 shadow";
+                btnW.className = "px-4 py-2 rounded-xl text-sm font-bold text-slate-300 hover:text-white transition";
+                expBox.innerHTML = `
+                    <div class="flex items-center space-x-2 text-amber-300 font-bold text-base"><i class="fa-solid fa-water text-xl"></i><span>夏季季候風（吹西南/東南風）</span></div>
+                    <p class="text-xs text-slate-200 leading-relaxed">• <strong>風向：</strong>風從<strong>海洋</strong>吹向陸地。<br>• <strong>氣候特徵：</strong>香港夏季<strong>炎熱潮濕多雨</strong>。</p>`;
+            } else {
+                btnW.className = "px-4 py-2 rounded-xl text-sm font-bold bg-sky-400 text-slate-900 shadow";
+                btnS.className = "px-4 py-2 rounded-xl text-sm font-bold text-slate-300 hover:text-white transition";
+                expBox.innerHTML = `
+                    <div class="flex items-center space-x-2 text-cyan-300 font-bold text-base"><i class="fa-solid fa-mountain text-xl"></i><span>冬季季候風（吹東北風）</span></div>
+                    <p class="text-xs text-slate-200 leading-relaxed">• <strong>風向：</strong>風從<strong>內陸</strong>吹向海洋。<br>• <strong>氣候特徵：</strong>香港冬季<strong>寒冷乾燥少雨</strong>。</p>`;
+            }
+        }
+
+        window.initMonsoonCanvas = function() {
+            const canvas = document.getElementById('monsoonCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = 250;
+            let particles = Array.from({length: 40}, () => ({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 1 + Math.random() * 2, size: 2 + Math.random() * 3 }));
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#0284c7'; ctx.fillRect(0, canvas.height * 0.5, canvas.width, canvas.height * 0.5);
+                ctx.fillStyle = '#15803d'; ctx.fillRect(0, 0, canvas.width, canvas.height * 0.5);
+                ctx.fillStyle = 'white'; ctx.font = 'bold 14px Noto Sans TC';
+                ctx.fillText('亞洲內陸 (Land)', 15, 30); ctx.fillText('海洋 (Ocean)', 15, canvas.height - 20);
+
+                particles.forEach(p => {
+                    ctx.beginPath();
+                    if (currentSeason === 'summer') {
+                        p.y -= p.speed; if (p.y < 0) p.y = canvas.height;
+                        ctx.fillStyle = 'rgba(255, 230, 100, 0.8)';
+                    } else {
+                        p.y += p.speed; if (p.y > canvas.height) p.y = 0;
+                        ctx.fillStyle = 'rgba(200, 240, 255, 0.8)';
+                    }
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                monsoonAnimId = requestAnimationFrame(animate);
+            }
+            if (monsoonAnimId) cancelAnimationFrame(monsoonAnimId);
+            animate();
+            window.setMonsoonSeason('summer');
+        }
+
+        // LEVEL 3: TASK A (TRUE / FALSE), TASK B (QUICK QUIZ), TASK C (MATCHING)
+        const tfQuestions = [
+            { id: 1, statement: "香港夏季炎熱少雨。", isTrue: false, correction: "錯在「少雨」。受夏季季候風影響，香港夏季應該是「炎熱多雨」。" },
+            { id: 2, statement: "新加坡靠近赤道，全年四季不明顯。", isTrue: true, correction: "正確！新加坡屬於熱帶雨林氣候，全年皆夏。" },
+            { id: 3, statement: "坎培拉全年氣溫變化與香港相近。", isTrue: false, correction: "錯在「相近」。坎培拉位於南半球，氣溫與季節變化與香港「完全相反」。" },
+            { id: 4, statement: "新加坡一年四季都多雨。", isTrue: true, correction: "正確！新加坡終年受熱帶雨林氣候影響，午後常有陣雨。" }
+        ];
+
+        let tfAnswered = {};
+        window.renderTFQuestions = function() {
+            const container = document.getElementById('tfQuestionContainer');
+            container.innerHTML = tfQuestions.map(q => `
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="font-bold text-slate-800 text-sm md:text-base">${q.id}. ${q.statement}</span>
+                        <div class="flex space-x-2">
+                            <button onclick="checkTF(${q.id}, true)" id="tf-btn-t-${q.id}" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold">⭕ 正確</button>
+                            <button onclick="checkTF(${q.id}, false)" id="tf-btn-f-${q.id}" class="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold">❌ 錯誤</button>
+                        </div>
+                    </div>
+                    <div id="tf-exp-${q.id}" class="hidden text-xs text-indigo-900 bg-indigo-50 p-2 rounded-lg font-medium">${q.correction}</div>
+                </div>
+            `).join('');
+        }
+
+        window.checkTF = function(id, userChoice) {
+            if (tfAnswered[id]) return; // Block repeat
+            tfAnswered[id] = true;
+
+            // Lock buttons
+            ['t', 'f'].forEach(type => {
+                const btn = document.getElementById(`tf-btn-${type}-${id}`);
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            });
+
+            const q = tfQuestions.find(x => x.id === id);
+            document.getElementById(`tf-exp-${id}`).classList.remove('hidden');
+
+            if (userChoice === q.isTrue) {
+                window.addScore(15);
+                window.showModal("回答正確！", q.correction, true);
+            } else {
+                window.showModal("已作答 (錯誤)", "不可修改了哦！請閱讀解析：\n" + q.correction, false);
+            }
+        }
+
+        const quickQuizData = [
+            { id: 1, question: "HK01 新聞報導：「颱風吹襲香港帶來豪雨，天文台發出黑色暴雨警告。」請問這項描述屬於：", options: ["（A）天氣", "（B）氣候"], ans: 0, exp: "颱風與暴雨警告是 short-term（短期數小時內）的大氣現象，屬於天氣。" },
+            { id: 2, question: "新加坡的小朋友說：「我們這裡全年都很熱，幾乎每天午後都會下陣雨，不用買羽絨服。」請問這是描述新加坡的：", options: ["（A）天氣特徵", "（B）氣候特徵"], ans: 1, exp: "「全年都很熱、終年午後陣雨」是長年統計出來的穩定特徵，屬於氣候特徵。" },
+            { id: 3, question: "當香港（北半球）正在過寒冷的 12 月聖誕節時，澳洲坎培拉氣候正好是夏天。請問這是因為兩地的：", options: ["（A）氣候與季節相反", "（B）那天剛好天氣不好"], ans: 0, exp: "南北半球季節完全相反！香港（北半球）12月是冬季，坎培拉（南半球）12月是夏季。" }
+        ];
+
+        let quizAnswered = {};
+        window.renderQuickQuiz = function() {
+            const container = document.getElementById('quickQuizContainer');
+            container.innerHTML = quickQuizData.map(q => `
+                <div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm space-y-3">
+                    <p class="font-bold text-slate-800 text-sm md:text-base">${q.id}. ${q.question}</p>
+                    <div class="flex flex-wrap gap-3">
+                        ${q.options.map((opt, idx) => `
+                            <button onclick="checkQuickQuiz(${q.id}, ${idx})" id="quiz-btn-${q.id}-${idx}" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-xs md:text-sm px-4 py-2 rounded-xl transition">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.checkQuickQuiz = function(id, idx) {
+            if (quizAnswered[id]) return; // Block repeat
+            quizAnswered[id] = true;
+
+            const q = quickQuizData.find(x => x.id === id);
+            
+            // Lock buttons
+            q.options.forEach((_, optIdx) => {
+                const btn = document.getElementById(`quiz-btn-${id}-${optIdx}`);
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            });
+
+            if (idx === q.ans) {
+                window.addScore(20);
+                window.showModal("完全答對！", q.exp, true);
+            } else {
+                window.showModal("已作答 (錯誤)", "不可修改了哦！請閱讀解析：\n" + q.exp, false);
+            }
+        }
+
+        const matchingCities = [
+            { id: 1, name: "1. 香港", correct: "B", desc: "四季分明，夏季炎熱多雨，冬季溫和乾燥" },
+            { id: 2, name: "2. 新加坡", correct: "A", desc: "全年皆夏，終年炎熱多雨" },
+            { id: 3, name: "3. 北京", correct: "D", desc: "四季分明，冬冷夏熱，冬季氣溫低於 0℃" },
+            { id: 4, name: "4. 坎培拉 (澳洲)", correct: "C", desc: "季節與香港（北半球）完全相反" }
+        ];
+
+        let matchAnswered = false;
+        window.renderMatchingTable = function() {
+            const tbody = document.getElementById('matchingTableBody');
+            tbody.innerHTML = matchingCities.map(c => `
+                <tr>
+                    <td class="p-3 font-bold text-slate-800">${c.name}</td>
+                    <td class="p-3">
+                        <select id="match-select-${c.id}" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500">
+                            <option value="">-- 請選擇 --</option>
+                            <option value="A">A. 熱帶雨林氣候</option>
+                            <option value="B">B. 亞熱帶季風氣候</option>
+                            <option value="C">C. 南半球溫帶氣候</option>
+                            <option value="D">D. 溫帶季風氣候</option>
+                        </select>
+                    </td>
+                    <td class="p-3 text-slate-600 text-xs">${c.desc}</td>
+                    <td class="p-3 text-xs font-bold" id="match-res-${c.id}">-</td>
+                </tr>
+            `).join('');
+        }
+
+        window.checkMatchingAnswers = function() {
+            if(matchAnswered) return;
+            matchAnswered = true;
+
+            // Lock all select elements and button
+            document.getElementById('btn-submit-match').disabled = true;
+            document.getElementById('btn-submit-match').classList.add('opacity-50', 'cursor-not-allowed');
+            
+            let allCorrect = true;
+            let correctCount = 0;
+            matchingCities.forEach(c => {
+                const sel = document.getElementById(`match-select-${c.id}`);
+                sel.disabled = true;
+                const res = document.getElementById(`match-res-${c.id}`);
+                if (sel.value === c.correct) {
+                    res.className = "p-3 text-xs font-bold text-emerald-600";
+                    res.innerText = "⭕ 正確";
+                    correctCount++;
+                } else {
+                    res.className = "p-3 text-xs font-bold text-rose-600";
+                    res.innerText = "❌ 錯誤";
+                    allCorrect = false;
+                }
+            });
+
+            window.addScore(correctCount * 10);
+            if (allCorrect) {
+                window.playSound('fanfare');
+                window.showModal("全對成就解鎖！🎉", "你完全掌握了四大城市的氣候特徵對照表！", true);
+            } else {
+                window.showModal("作答完成", `你答對了 ${correctCount} 題，答案已鎖定記錄。`, false);
+            }
+        }
+
+        // LEVEL 4: WHITE CHRISTMAS TEST
+        let whiteXmasAnswered = false;
+        window.testSnowDestination = function(cityKey) {
+            if (whiteXmasAnswered) return; // Allow only 1 click for testing logic in Tab 4
+            whiteXmasAnswered = true;
+            
+            // visually lock options
+            ['beijing', 'singapore', 'canberra'].forEach(c => {
+                const opt = document.getElementById(`snow-opt-${c}`);
+                const btn = document.getElementById(`snow-btn-${c}`);
+                if(c !== cityKey) opt.classList.add('opacity-50');
+                btn.disabled = true;
+                btn.innerText = "已測試";
+            });
+
+            const box = document.getElementById('snowResultBox');
+            box.classList.remove('hidden');
+
+            if (cityKey === 'beijing') {
+                box.innerHTML = `<div class="flex items-start space-x-3 text-emerald-700"><i class="fa-solid fa-circle-check text-2xl mt-0.5"></i><div><strong class="text-base font-extrabold block">【北京】有機會看到雪景！❄️</strong><p class="text-xs text-slate-600 mt-1">北京屬於「溫帶季風氣候」，12 月屬於寒冷的冬季，平均氣溫跌至攝氏 0°C 或以下，達到下雪的溫度條件！</p></div></div>`;
+                window.addScore(30);
+                window.playSound('correct');
+            } else if (cityKey === 'singapore') {
+                box.innerHTML = `<div class="flex items-start space-x-3 text-rose-600"><i class="fa-solid fa-circle-xmark text-2xl mt-0.5"></i><div><strong class="text-base font-extrabold block">【新加坡】不可能下雪！🌴</strong><p class="text-xs text-slate-600 mt-1">新加坡靠近赤道，屬於「熱帶雨林氣候」，全年高溫炎熱（26–28°C），離 0°C 相差甚遠，絕對看不到白色聖誕！</p></div></div>`;
+                window.playSound('wrong');
+            } else if (cityKey === 'canberra') {
+                box.innerHTML = `<div class="flex items-start space-x-3 text-rose-600"><i class="fa-solid fa-circle-xmark text-2xl mt-0.5"></i><div><strong class="text-base font-extrabold block">【坎培拉】不可能下雪！☀️</strong><p class="text-xs text-slate-600 mt-1">坎培拉位於南半球，季節與香港相反！當北半球過 12 月聖誕節時，坎培拉正是炎熱的「夏季」（平均氣溫近 20–25°C），因此無法看雪！</p></div></div>`;
+                window.playSound('wrong');
+            }
+        }
+
+        // Window Initializer
+        window.onload = function() {
+            window.renderLevel1();
+            window.renderTFQuestions();
+            window.renderQuickQuiz();
+            window.renderMatchingTable();
+            
+            // Add ID and btn-submit-match dynamically for Matching
+            const matchSubmitContainer = document.querySelector('button[onclick="checkMatchingAnswers()"]');
+            if(matchSubmitContainer) matchSubmitContainer.id = "btn-submit-match";
+            
+            // Add IDs for snow options dynamically
+            document.querySelectorAll('[onclick^="testSnowDestination"]').forEach(el => {
+                const match = el.getAttribute('onclick').match(/'([^']+)'/);
+                if(match) {
+                    el.id = `snow-opt-${match[1]}`;
+                    const btn = el.querySelector('button');
+                    if(btn) btn.id = `snow-btn-${match[1]}`;
+                }
+            });
+        };
+    </script>
+</body>
+</html>
